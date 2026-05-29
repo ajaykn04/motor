@@ -7,38 +7,38 @@
 
 <style>
 *{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
 }
 
 body{
-    width:100vw;
-    height:100vh;
-    overflow:hidden;
-    font-family:Arial,sans-serif;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    background:red;
-    color:white;
+    width:100vw;
+    height:100vh;
+    overflow:hidden;
+    font-family:Arial,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background:#c00;
+    color:white;
 }
 
 #btn{
-    width:280px;
-    height:280px;
-    border-radius:50%;
-    border:none;
-    font-size:50px;
-    font-weight:bold;
-    color:white;
-    cursor:pointer;
+    width:320px;
+    height:320px;
+    border-radius:50%;
+    border:none;
+    font-size:70px;
+    font-weight:bold;
+    color:white;
+    cursor:pointer;
 }
 
 #status{
-    font-size:80px;
-    font-weight:bold;
-    text-align:center;
+    font-size:100px;
+    font-weight:bold;
+    text-align:center;
 }
 </style>
 </head>
@@ -50,22 +50,23 @@ body{
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+
 import {
-    getDatabase,
-    ref,
-    set,
-    onValue,
-    get
+    getDatabase,
+    ref,
+    set,
+    get,
+    onValue
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCZ8PWnHPohUmeknuXAXCp159em0MZHP3g",
-    authDomain: "motor-9581e.firebaseapp.com",
-    databaseURL: "https://motor-9581e-default-rtdb.asia-southeast1.firebasedatabase.app/",
-    projectId: "motor-9581e",
-    storageBucket: "motor-9581e.firebasestorage.app",
-    messagingSenderId: "207459218961",
-    appId: "1:207459218961:web:e4f20cc17db2a7a2a8e3b0"
+    apiKey: "AIzaSyCZ8PWnHPohUmeknuXAXCp159em0MZHP3g",
+    authDomain: "motor-9581e.firebaseapp.com",
+    databaseURL: "https://motor-9581e-default-rtdb.asia-southeast1.firebasedatabase.app/",
+    projectId: "motor-9581e",
+    storageBucket: "motor-9581e.firebasestorage.app",
+    messagingSenderId: "207459218961",
+    appId: "1:207459218961:web:e4f20cc17db2a7a2a8e3b0"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -81,100 +82,128 @@ const siren = new Audio(
 
 siren.loop = true;
 
-/* =========================
-   CONTROL PAGE
-========================= */
+/* ==================================
+   CONTROL PAGE
+================================== */
 
 if(!isAlertPage){
 
-    appDiv.innerHTML = `
-        <button id="btn">OFF</button>
-    `;
+    appDiv.innerHTML = `
+        <button id="btn">OFF</button>
+    `;
 
-    const btn = document.getElementById("btn");
+    const btn = document.getElementById("btn");
 
-    onValue(ref(db,"machineState"),(snapshot)=>{
+    onValue(ref(db,"machineState"),(snapshot)=>{
 
-        const state = snapshot.val() || false;
+        const state = snapshot.val() || false;
 
-        btn.textContent = state ? "ON" : "OFF";
-        btn.style.background = state ? "green" : "red";
-        document.body.style.background = state ? "#0f4" : "#c00";
-    });
+        btn.textContent = state ? "ON" : "OFF";
 
-    btn.addEventListener("click", async ()=>{
+        btn.style.background =
+            state ? "green" : "red";
 
-        try{
+        document.body.style.background =
+            state ? "#006600" : "#990000";
 
-            const snapshot = await get(ref(db,"machineState"));
+    });
 
-            const currentState = snapshot.val() || false;
+    btn.addEventListener("click", async ()=>{
 
-            await set(
-                ref(db,"machineState"),
-                !currentState
-            );
+        try{
 
-            await set(
-                ref(db,"alarmAck"),
-                false
-            );
+            const snap =
+                await get(ref(db,"machineState"));
 
-        }catch(err){
-            alert(err.message);
-            console.error(err);
-        }
+            const current =
+                snap.val() || false;
 
-    });
+            await set(
+                ref(db,"machineState"),
+                !current
+            );
+
+        }catch(err){
+
+            console.error(err);
+            alert(err.message);
+
+        }
+
+    });
 
 }
 
-/* =========================
-   ALERT PAGE
-========================= */
+/* ==================================
+   ALERT PAGE
+================================== */
 
 else{
 
-    appDiv.innerHTML = `
-        <div id="status">OFF</div>
-    `;
+    appDiv.innerHTML = `
+        <div id="status">OFF</div>
+    `;
 
-    const status = document.getElementById("status");
+    const status =
+        document.getElementById("status");
 
-    function stopAlarm(){
+    let previousState = null;
+    let alarmTimer = null;
 
-        siren.pause();
-        siren.currentTime = 0;
+    function stopAlarm(){
 
-        set(ref(db,"alarmAck"),true);
-    }
+        siren.pause();
+        siren.currentTime = 0;
 
-    document.body.addEventListener("click",stopAlarm);
+        if(alarmTimer){
+            clearTimeout(alarmTimer);
+            alarmTimer = null;
+        }
 
-    onValue(ref(db,"machineState"),(snapshot)=>{
+    }
 
-        const state = snapshot.val() || false;
+    function startAlarm(){
 
-        status.textContent = state ? "ON" : "OFF";
+        stopAlarm();
 
-        document.body.style.background =
-            state ? "green" : "red";
+        siren.currentTime = 0;
 
-        if(state){
+        siren.play().catch(err=>{
+            console.log(err);
+        });
 
-            siren.play().catch(()=>{});
+        alarmTimer = setTimeout(()=>{
+            stopAlarm();
+        },60000);
 
-            setTimeout(()=>{
-                stopAlarm();
-            },60000);
+    }
 
-        }else{
+    document.body.addEventListener(
+        "click",
+        stopAlarm
+    );
 
-            stopAlarm();
+    onValue(ref(db,"machineState"),(snapshot)=>{
 
-        }
+        const state =
+            snapshot.val() || false;
 
-    });
+        status.textContent =
+            state ? "ON" : "OFF";
+
+        document.body.style.background =
+            state ? "green" : "red";
+
+        if(
+            previousState !== null &&
+            previousState !== state
+        ){
+            startAlarm();
+        }
+
+        previousState = state;
+
+    });
 
 }
 
