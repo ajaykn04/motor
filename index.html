@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Machine Alert</title>
+<style>
+body{margin:0;font-family:Arial;height:100vh;display:flex;justify-content:center;align-items:center;background:#c00;color:white}
+#btn{width:260px;height:260px;border-radius:50%;border:none;font-size:40px;color:white;background:red}
+#status{font-size:60px;text-align:center}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "REPLACE_ME",
+  authDomain: "REPLACE_ME",
+  databaseURL: "REPLACE_ME",
+  projectId: "REPLACE_ME",
+  storageBucket: "REPLACE_ME",
+  messagingSenderId: "REPLACE_ME",
+  appId: "REPLACE_ME"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+const route = location.hash === "#alert" ? "alert" : "control";
+const appDiv = document.getElementById("app");
+
+const siren = new Audio("https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg");
+siren.loop = true;
+
+if(route==="control"){
+  appDiv.innerHTML='<button id="btn">OFF</button>';
+  const btn=document.getElementById("btn");
+
+  onValue(ref(db,"machineState"),snap=>{
+    const on=snap.val()===true;
+    btn.style.background=on?"green":"red";
+    btn.textContent=on?"ON":"OFF";
+  });
+
+  btn.onclick=async()=>{
+    onValue(ref(db,"machineState"), async snap=>{
+      const next=!(snap.val()===true);
+      await set(ref(db,"machineState"),next);
+      await set(ref(db,"alarmAck"),false);
+    },{onlyOnce:true});
+  };
+}else{
+  appDiv.innerHTML='<div id="status">OFF</div>';
+  const status=document.getElementById("status");
+
+  function stopAlarm(){
+    siren.pause();
+    siren.currentTime=0;
+    set(ref(db,"alarmAck"),true);
+  }
+
+  document.body.onclick=stopAlarm;
+
+  onValue(ref(db,"machineState"),snap=>{
+    const on=snap.val()===true;
+
+    document.body.style.background=on?"green":"red";
+    status.textContent=on?"ON":"OFF";
+
+    if(on){
+      siren.play().catch(()=>{});
+      setTimeout(stopAlarm,60000);
+    }else{
+      stopAlarm();
+    }
+  });
+}
+</script>
+</body>
+</html>
